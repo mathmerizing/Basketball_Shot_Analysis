@@ -39,3 +39,10 @@ e.g. How to run it on "test.mp4":
  - matplotlib<br>
  - tensorflow<br>
  - pillow
+ 
+ <h2>Tips for best performance:</h2><br>
+ 
+ - Stablize the camera or phone when you are recording the video.
+ - Cut the video beforehand and feed in short videos to the script.
+ - Use a high quality video becuase this maximizes the likelyhood of the basketball being recognized.
+ - Make sure that there is only ONE basketball in the video. Otherwise a "wrong basketball" might be recognized.
