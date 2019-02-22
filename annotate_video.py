@@ -44,6 +44,7 @@ MIN_SCORE=.5
 # Where is the ball being shot from?
 SHOT_FROM_RIGHT=True
 
+# this method has been copied from: https://github.com/tensorflow/models/blob/master/research/object_detection/object_detection_tutorial.ipynb
 # INFERENCE METHOD ---------------------------------------------------------------------------------------------------------
 def run_inference_for_single_image(image, graph):
   with graph.as_default():
