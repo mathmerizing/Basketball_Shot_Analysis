@@ -20,7 +20,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import progressbar
 
-# This is needed since the notebook is stored in the object_detection folder.
+# This is needed since this script is stored in the object_detection folder.
 sys.path.append("..")
 from object_detection.utils import ops as utils_ops
 
