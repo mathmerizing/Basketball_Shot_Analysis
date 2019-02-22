@@ -18,6 +18,7 @@ from collections import defaultdict
 from io import StringIO
 from matplotlib import pyplot as plt
 from PIL import Image
+import progressbar
 
 # This is needed since the notebook is stored in the object_detection folder.
 sys.path.append("..")
@@ -26,6 +27,7 @@ from object_detection.utils import ops as utils_ops
 if StrictVersion(tf.__version__) < StrictVersion('1.9.0'):
   raise ImportError('Please upgrade your TensorFlow installation to v1.9.* or later!')
 
+# block tensorflow debugging output
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from utils import label_map_util
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     x_points = []
     y_points = []
 
-    #load frozen tensorflow model into memory
+    # load frozen tensorflow model into memory
     detection_graph = tf.Graph()
     with detection_graph.as_default():
       od_graph_def = tf.GraphDef()
@@ -113,28 +115,23 @@ if __name__ == '__main__':
         od_graph_def.ParseFromString(serialized_graph)
         tf.import_graph_def(od_graph_def, name='')
 
-    #load label map
+    # load label map
     category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS, use_display_name=True)
 
-
-
-    reader = imageio.get_reader(file_name, "ffmpeg") #create video reader
+    reader = imageio.get_reader(file_name, "ffmpeg") # create video reader
     path , name = os.path.split(file_name)
     new_file = os.path.join(path,"annotated_"+name)
-    writer = imageio.get_writer(new_file,fps=reader.get_meta_data()['fps']) #create video writer
-
-    del path
-    del name
+    writer = imageio.get_writer(new_file,fps=reader.get_meta_data()['fps']) # create video writer
 
     # number of frames in video
-    #print(reader.count_frames())
+    frames_num = reader.count_frames()
 
-    #for each frame in the video:
+    # for each frame in the video:
     counter = 0 #frame number
     for _, image in enumerate(reader.iter_data()):
         counter += 1
 
-        #show the frame
+        # show the frame
         """
         fig, ax = plt.subplots()
         ax.set_title(f"Frame {counter}")
@@ -142,10 +139,10 @@ if __name__ == '__main__':
         plt.show()
         """
 
-        #add boxes to the image
+        # add boxes to the image
         image_np = np.asarray(image)
 
-        if (counter%1 == 0):
+        if (counter%1 == 0): # if there are too many frames 'if (counter%N == 0):' would only pick every N-th frame
             all_images.append(image_np)
 
         image_np_expanded = np.expand_dims(image_np, axis=0)
@@ -158,11 +155,12 @@ if __name__ == '__main__':
         # only the first detection box matters
         box = output_dict['detection_boxes'][0]
         (ymin,xmin,ymax,xmax)=(box[0]*height,box[1]*width,box[2]*height,box[3]*width)
+        # calculate the center of the detection_box
         (x_avg,y_avg) = ((xmin+xmax)/2,(ymin+ymax)/2)
 
         # only the first score matters
         score = output_dict['detection_scores'][0]
-        #print("prediction score: ",score)
+        # print("prediction score: ",score)
         if (score > MIN_SCORE):
             x_points.append(x_avg)
             y_points.append(y_avg)
@@ -181,7 +179,7 @@ if __name__ == '__main__':
               skip_scores=True,
               skip_labels=True)
 
-        #show frame with object detection
+        # show frame with object detection
         """
         fig, ax = plt.subplots()
         ax.set_title(f"Annotated Frame {counter}")
@@ -191,12 +189,16 @@ if __name__ == '__main__':
         plt.show()
         """
 
-        #add annotated image to the video writer
+        # add annotated image to the video writer
         writer.append_data(image_np)
 
-    #print("Frame count:",counter)
+        # update progressbar
+        progressbar.progress(counter,frames_num)
 
-    #close video writer
+    # end line after progressbar
+    sys.stdout.write("\n")
+
+    # close video writer
     writer.close()
 
     """
@@ -207,93 +209,117 @@ if __name__ == '__main__':
     # make regression
     (a,b,c) = np.polyfit(x_points, y_points, 2)
     f = np.poly1d([a,b,c])
-    #print("f(x) =")
-    #print(f)
+
+    # adjust the boundaries of the plot, such that it is only being shown on the image (and not also below the image)
     x_left = max(1,ceil((-b-sqrt(b*b-4*a*(c-height)))/(2*a)))
     x_right = min(width - 1,floor((-b+sqrt(b*b-4*a*(c-height)))/(2*a)))
     x = np.linspace(x_left,x_right,100)
 
-    #animate the frames in the all_images
+    # animate the frames in the all_images
     fig, ax = plt.subplots()
     ax.set_title("Close the window at the release point.")
     i = 0
     im = plt.imshow(all_images[i], animated=True)
 
+    # replaces i-th frame with (i+1)-th frame
     def updatefig(*args):
         global i
         i = (i+1 if i+1 != len(all_images) else 0)
         im.set_array(all_images[i])
         return im,
 
+    # run the animation
     ani = animation.FuncAnimation(fig, updatefig, interval=50, blit=True)
     plt.show()
-    #ax.imshow(out_image)
+    # ax.imshow(out_image)
 
+    # create an initial release_point
+    start_position = (int(3*width/4) if SHOT_FROM_RIGHT else int(width/4))
+    # print(f"f'({start_position}) = {derivative_start}")
 
-    start_position = (int(3*width/4) if SHOT_FROM_RIGHT else int(width/4))#int(input("Please enter the x-coordinate of where the ball is being released.\nx = "))
-    #print(f"f'({start_position}) = {derivative_start}")
-
+    # create plot in which the angle of the shot can be analysed
     fig, ax = plt.subplots()
     ax.set_title("SHOT ANALYSIS")
     ax.imshow(all_images[i])
-    #ax.imshow(out_image)
+    # ax.imshow(out_image)
 
     # fitting parabola
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
 
-    #draw regression
+    # draw regression
     ax.plot(x,f(x),label=f'$f(x) = {("-" if a < 0 else "")}{abs(round_to_1(a))} x^2 {("-" if b < 0 else "+")} {abs(round_to_1(b))} x {("-" if c < 0 else "+")}{abs(round(c))}$')
 
+    # DRAW ANGLE -------------------------------------------------------------------------------------------------------------
     def draw_angle(pos):
+        # delete old angle
         for child in ax.get_children():
             if isinstance(child,(matplotlib.patches.FancyArrow,matplotlib.patches.Arc,matplotlib.collections.PathCollection)):
                 child.remove()
-        L = ax.get_children()
+        # other x-coordinate of the slope triangle
         x_0 = pos-step*side_factor
+        # slope of parabola at pos
         derivative_start = 2*a*pos+b
+        # value of tangent to the parabola at pos evaluated at x_0
         tangent_x_0 = derivative_start*x_0+f(pos)-derivative_start*pos
+        # angle between the adjacent and the hypothenuse (looking from pos)
         angle = abs(degrees(atan((tangent_x_0-f(pos))/(100))))
-        #print("angle = ",angle)
+        # plot the release_point
         release_point = ax.scatter([pos],[f(pos)],c="black",label="release point")
 
         arr_head_proportion = 0.15
         arr1_horiz = step*(-1)*side_factor # horizontal displacement of the first arrow
         arr2_length = abs((-1)*side_factor*sqrt(step**2+(tangent_x_0-f(pos))**2)) # length of the second arrow
         arr_head_size = min(abs(arr1_horiz)*arr_head_proportion,arr2_length*arr_head_proportion)
+
+        # draw both arrows
         arrow_1 = ax.arrow(pos,f(pos),arr1_horiz,0,fc="red",ec="red",shape="full",head_width=arr_head_size,head_length=arr_head_size,length_includes_head = True)
         arrow_2 = ax.arrow(pos,f(pos),arr1_horiz,tangent_x_0-f(pos),fc="red",ec="red",shape="full",head_width=arr_head_size,head_length=arr_head_size,length_includes_head = True)
+
+        # starting and ending angles of the arc
         theta_2 = (180.0+angle if SHOT_FROM_RIGHT else 360.0)
         theta_1 = (180.0 if SHOT_FROM_RIGHT else 360.0-angle)
+
+        # create and plot arc
         arc = matplotlib.patches.Arc(xy=(pos,f(pos)),width=step,height=step,angle=0,theta1=theta_1,theta2=theta_2,color="red",label="angle $\\approx$" + " " + str(round(angle,2)) + "°")
         ax.add_patch(arc)
 
         # draw ball positions
-        #ax.scatter(x_points,y_points,c="orange",marker = '+')
+        # ax.scatter(x_points,y_points,c="orange",marker = '+')
 
+    # -------------------
+
+    # SLIDER_ON_CHANGED -------------------------------------------------------------------------------------------------------
     def slider_on_changed(val):
+        # draw the new angle at the new position
         draw_angle(int(val))
+        # update the legend
         for child in ax.get_children():
             if isinstance(child,matplotlib.legend.Legend):
                 child.remove()
                 break
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5),fancybox=True, shadow=True)
+        # redraw the canvas
         fig.canvas.draw_idle()
 
+    # --------------------
 
-
-    #show slope traingle
     side_factor = (1 if SHOT_FROM_RIGHT else -1)
     step = 100
 
+    # show slope traingle
     draw_angle(start_position)
 
+    # create a slider with a bounded range (the release_point should not exceed the extreme_point)
     ax_pos = ax.get_position()
     slider_ax  = fig.add_axes([ax_pos.x0, ax_pos.y0 -0.1, ax_pos.width, ax_pos.height/40])
     extreme_point = int(-b/(2*a))
     slider = Slider(slider_ax, 'release:', (x_left + 50 if not SHOT_FROM_RIGHT else extreme_point + 20), (x_right - 50 if SHOT_FROM_RIGHT else extreme_point - 20), valinit=start_position, valstep = 1)
     slider.on_changed(slider_on_changed)
 
+    # create the legend and show the plot
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5),fancybox=True, shadow=True)
     plt.show()
+
+    # save the shown plot as an image
     fig.savefig(file_name.replace(".mp4",".png"))
