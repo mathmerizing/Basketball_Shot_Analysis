@@ -216,6 +216,7 @@ if __name__ == '__main__':
     x_right = min(width - 1,floor((-b+sqrt(b*b-4*a*(c-height)))/(2*a)))
     x = np.linspace(x_left,x_right,100)
 
+    """
     # animate the frames in the all_images
     fig, ax = plt.subplots()
     ax.set_title("Close the window at the release point.")
@@ -233,15 +234,18 @@ if __name__ == '__main__':
     ani = animation.FuncAnimation(fig, updatefig, interval=50, blit=True)
     plt.show()
     # ax.imshow(out_image)
+    """
 
     # create an initial release_point
     start_position = (int(3*width/4) if SHOT_FROM_RIGHT else int(width/4))
-    # print(f"f'({start_position}) = {derivative_start}")
+
+    # create an initial frame
+    start_frame = int(len(all_images)/4)
 
     # create plot in which the angle of the shot can be analysed
     fig, ax = plt.subplots()
     ax.set_title("SHOT ANALYSIS")
-    ax.imshow(all_images[i])
+    ax.imshow(all_images[start_frame])
     # ax.imshow(out_image)
 
     # fitting parabola
@@ -305,6 +309,20 @@ if __name__ == '__main__':
 
     # --------------------
 
+    # FRAME_SLIDER_ON_CHANGED -------------------------------------------------------------------------------------------------
+    def frame_slider_on_changed(val):
+        # update the image / frame
+        for child in ax.get_children():
+            if isinstance(child,matplotlib.image.AxesImage):
+                child.remove()
+                break
+        # replace with new frame
+        ax.imshow(all_images[int(val)-1])
+        # redraw the canvas
+        fig.canvas.draw_idle()
+
+    # --------------------
+
     side_factor = (1 if SHOT_FROM_RIGHT else -1)
     step = 100
 
@@ -313,13 +331,24 @@ if __name__ == '__main__':
 
     # create a slider with a bounded range (the release_point should not exceed the extreme_point)
     ax_pos = ax.get_position()
-    slider_ax  = fig.add_axes([ax_pos.x0, ax_pos.y0 -0.1, ax_pos.width, ax_pos.height/40])
+    slider_ax  = fig.add_axes([ax_pos.x0, ax_pos.y0 -0.05, ax_pos.width, ax_pos.height/40])
     extreme_point = int(-b/(2*a))
     slider = Slider(slider_ax, 'release:', (x_left + 50 if not SHOT_FROM_RIGHT else extreme_point + 20), (x_right - 50 if SHOT_FROM_RIGHT else extreme_point - 20), valinit=start_position, valstep = 1)
     slider.on_changed(slider_on_changed)
 
+    # create a slider for choosing the frame
+    frame_slider_ax  = fig.add_axes([ax_pos.x0, ax_pos.y0 -0.1, ax_pos.width, ax_pos.height/40])
+    frame_slider = Slider(frame_slider_ax, 'frame number:', 1 , len(all_images) , valinit=start_frame, valstep = 1)
+    frame_slider.on_changed(frame_slider_on_changed)
+
     # create the legend and show the plot
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5),fancybox=True, shadow=True)
+
+    # show plot in fullscreen
+    manager = plt.get_current_fig_manager()
+    manager.set_window_title("Basketball Shot Analysis")
+    manager.resize(*manager.window.maxsize())
+
     plt.show()
 
     # save the shown plot as an image
