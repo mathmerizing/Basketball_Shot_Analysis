@@ -21,10 +21,7 @@ e.g. How to run it on "test.mp4":
 <pre> >>> python3 annotate_video.py test_flipped.mp4  --left_to_right </pre>
  <br><br>
  
- STEP 5: Close the window with the animated frames of the shot around the time when the ball is being released.
- <br><br>
- 
- STEP 6: Adjust the the release point with the slider at the bottom of the window. Close the window. <br><br>
+ STEP 5: Adjust the release point with the slider at the bottom of the window. Pick a frame of the video with the second slider. Close the window. <br><br>
  
  RESULT: The analyzed picture and the annotated movie have been saved.
  
@@ -46,3 +43,4 @@ e.g. How to run it on "test.mp4":
  - Cut the video beforehand and feed in short videos to the script.
  - Use a high quality video becuase this maximizes the likelyhood of the basketball being recognized.
  - Make sure that there is only ONE basketball in the video. Otherwise a "wrong basketball" might be recognized.
+ - Use a brown basketball.
