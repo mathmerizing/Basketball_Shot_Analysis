@@ -10,7 +10,7 @@ STEP 2: Follow their installation guide:
 https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/installation.md
 <br><br>
 
-STEP 3: Download this repository and move all the files into the folder "object_detection" of the tensorflow repositor
+STEP 3: Download this repository and move all the files into the folder "object_detection" of the tensorflow repository
 <br><br>
 
 STEP 4: Place your video of your shot in the same folder and run it. <br>
